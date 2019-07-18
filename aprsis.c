@@ -113,6 +113,8 @@ void export_gpio(int gpio) {
 	struct stat finfo;
 	int err;
 
+	gpio = abs(gpio);
+
 	fd = open("/sys/class/gpio/export", O_WRONLY);
 	if (fd < 0) {
 	  printf ("Permissions do not allow ordinary users to access GPIO.\n");
@@ -189,11 +191,21 @@ void export_gpio(int gpio) {
 void *gpio_thread (void *arg) {
 	int rxtx = (int)arg;
 	int fd;
+	int pin;
+	char pol = 1;
+
+	pin = (rxtx == 0 ? gpio.tx : gpio.rx);
+	if (pin < 0)
+	{
+		pin *= -1;
+		pol = 0;
+	}
 
 	/* open the gpio file */
         char stemp[80];
-        sprintf(stemp, "/sys/class/gpio/gpio%d/value", (rxtx == 0 ? gpio.tx : gpio.rx));
+        sprintf(stemp, "/sys/class/gpio/gpio%d/value", pin);
         fd = open(stemp, O_WRONLY);
+		write(fd, pol ? "0" : "1", 1);
 
 	for (;;) {
 		/* wait for the main thread to signal us */
@@ -208,9 +220,9 @@ void *gpio_thread (void *arg) {
 		}
 
 		/* blink the led */
-		write(fd, "1", 1);
+		write(fd, pol ? "1" : "0", 1);
 		usleep(50000);
-		write(fd, "0", 1);
+		write(fd, pol ? "0" : "1", 1);
 	}
 }
 
